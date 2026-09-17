@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+  backend:
+    build: ./backend
+    ports:
+      - '8000:8000'
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://dharma:dharma@postgres:5432/dharma
+    volumes:
+      - ./backend:/app
+      - ./backups:/backups
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=dharma
+      - POSTGRES_PASSWORD=dharma
+      - POSTGRES_DB=dharma
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
