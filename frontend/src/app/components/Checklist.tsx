@@ -17,11 +17,14 @@ export default function Checklist({ checklist, onUpdated, dragHandleProps }: Che
   const [newItemText, setNewItemText] = useState("")
   const [showConfirm, setShowConfirm] = useState(false)
   const [items, setItems] = useState<ChecklistItem[]>(checklist.items)
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState("")
 
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newItemText.trim()) return
-    await checklistsApi.createItem(checklist.id, { text: newItemText.trim() })
+    const created = await checklistsApi.createItem(checklist.id, { text: newItemText.trim() })
+    setItems([...items, created])
     setNewItemText("")
     onUpdated()
   }
@@ -34,6 +37,17 @@ export default function Checklist({ checklist, onUpdated, dragHandleProps }: Che
   const handleDeleteItem = async (itemId: string) => {
     await checklistsApi.deleteItem(itemId)
     setItems(items.filter((i) => i.id !== itemId))
+    onUpdated()
+  }
+
+  const handleRenameItem = async (item: ChecklistItem) => {
+    if (!editingText.trim() || editingText === item.text) {
+      setEditingItemId(null)
+      return
+    }
+    await checklistsApi.updateItem(item.id, { text: editingText.trim() })
+    setItems(items.map((i) => (i.id === item.id ? { ...i, text: editingText.trim() } : i)))
+    setEditingItemId(null)
     onUpdated()
   }
 
@@ -95,9 +109,26 @@ export default function Checklist({ checklist, onUpdated, dragHandleProps }: Che
                         >
                           {item.is_checked && <Check size={12} />}
                         </button>
-                        <span className={`checklist-item-text ${item.is_checked ? "checked" : ""}`}>
-                          {item.text}
-                        </span>
+                        {editingItemId === item.id ? (
+                          <input
+                            className="checklist-item-input"
+                            value={editingText}
+                            onChange={(e) => setEditingText(e.target.value)}
+                            onBlur={() => handleRenameItem(item)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleRenameItem(item)
+                              if (e.key === "Escape") setEditingItemId(null)
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className={`checklist-item-text ${item.is_checked ? "checked" : ""}`}
+                            onClick={() => { setEditingItemId(item.id); setEditingText(item.text) }}
+                          >
+                            {item.text}
+                          </span>
+                        )}
                         <button className="btn-icon" onClick={() => handleDeleteItem(item.id)}>
                           <Trash2 size={12} />
                         </button>

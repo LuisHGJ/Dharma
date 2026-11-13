@@ -1,13 +1,16 @@
 "use client"
 
+import { useState } from "react"
 import { Draggable, DraggableProvided, DraggableStateSnapshot } from "@hello-pangea/dnd"
-import { Card as CardType } from "@/lib/api"
+import { Card as CardType, API_URL } from "@/lib/api"
 import { Calendar } from "lucide-react"
 import { createPortal } from "react-dom"
+import ContextMenu from "./ContextMenu"
 
 interface CardProps {
   card: CardType
   onClick: () => void
+  onDuplicate: () => void
   onDelete: () => void
   index: number
 }
@@ -25,13 +28,15 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
-function CardContent({ provided, snapshot, card, onClick, onDelete }: {
+function CardContent({ provided, snapshot, card, onClick, onDuplicate, onDelete }: {
   provided: DraggableProvided
   snapshot: DraggableStateSnapshot
   card: CardType
   onClick: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const deadlineColor = getDeadlineStatus(card.deadline)
   const checkedCount = card.checklists.reduce(
     (acc, cl) => acc + cl.items.filter((i) => i.is_checked).length, 0
@@ -43,7 +48,7 @@ function CardContent({ provided, snapshot, card, onClick, onDelete }: {
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    onDelete()
+    setContextMenu({ x: e.clientX, y: e.clientY })
   }
 
   const element = (
@@ -70,7 +75,7 @@ function CardContent({ provided, snapshot, card, onClick, onDelete }: {
       )}
       {card.cover_url && (
         <div className="card-cover">
-          <img src={`http://localhost:8000${card.cover_url}`} alt="" />
+          <img src={`${API_URL}${card.cover_url}`} alt="" />
         </div>
       )}
       <div className="card-body">
@@ -89,6 +94,22 @@ function CardContent({ provided, snapshot, card, onClick, onDelete }: {
           )}
         </div>
       </div>
+      {contextMenu && createPortal(
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          onDuplicate={() => {
+            setContextMenu(null)
+            onDuplicate()
+          }}
+          onDelete={() => {
+            setContextMenu(null)
+            onDelete()
+          }}
+        />,
+        document.body
+      )}
     </div>
   )
 
@@ -99,7 +120,7 @@ function CardContent({ provided, snapshot, card, onClick, onDelete }: {
   return element
 }
 
-export default function Card({ card, onClick, onDelete, index }: CardProps) {
+export default function Card({ card, onClick, onDuplicate, onDelete, index }: CardProps) {
   return (
     <Draggable draggableId={card.id} index={index}>
       {(provided, snapshot) => (
@@ -108,6 +129,7 @@ export default function Card({ card, onClick, onDelete, index }: CardProps) {
           snapshot={snapshot}
           card={card}
           onClick={onClick}
+          onDuplicate={onDuplicate}
           onDelete={onDelete}
         />
       )}

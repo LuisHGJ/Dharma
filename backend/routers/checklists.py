@@ -13,12 +13,26 @@ router = APIRouter(tags=["checklists"])
 
 @router.get("/cards/{card_id}/checklists", response_model=list[ChecklistResponse])
 def list_checklists(card_id: str, db: Session = Depends(get_db)):
-    return db.query(Checklist).filter(Checklist.card_id == card_id).order_by(Checklist.position).all()
+    return (
+        db.query(Checklist)
+        .filter(Checklist.card_id == card_id)
+        .order_by(Checklist.position, Checklist.created_at)
+        .all()
+    )
 
 
 @router.post("/cards/{card_id}/checklists", response_model=ChecklistResponse)
 def create_checklist(card_id: str, data: ChecklistCreate, db: Session = Depends(get_db)):
-    checklist = Checklist(card_id=card_id, **data.model_dump())
+    payload = data.model_dump()
+    if "position" not in data.model_fields_set:
+        last = (
+            db.query(Checklist.position)
+            .filter(Checklist.card_id == card_id)
+            .order_by(Checklist.position.desc())
+            .first()
+        )
+        payload["position"] = last[0] + 1 if last else 0
+    checklist = Checklist(card_id=card_id, **payload)
     db.add(checklist)
     db.commit()
     db.refresh(checklist)
@@ -49,7 +63,16 @@ def delete_checklist(checklist_id: str, db: Session = Depends(get_db)):
 
 @router.post("/checklists/{checklist_id}/items", response_model=ChecklistItemResponse)
 def create_checklist_item(checklist_id: str, data: ChecklistItemCreate, db: Session = Depends(get_db)):
-    item = ChecklistItem(checklist_id=checklist_id, **data.model_dump())
+    payload = data.model_dump()
+    if "position" not in data.model_fields_set:
+        last = (
+            db.query(ChecklistItem.position)
+            .filter(ChecklistItem.checklist_id == checklist_id)
+            .order_by(ChecklistItem.position.desc())
+            .first()
+        )
+        payload["position"] = last[0] + 1 if last else 0
+    item = ChecklistItem(checklist_id=checklist_id, **payload)
     db.add(item)
     db.commit()
     db.refresh(item)

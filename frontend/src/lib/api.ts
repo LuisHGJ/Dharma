@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8008"
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
@@ -139,4 +139,86 @@ export const labelsApi = {
     request<Label>(`/labels/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<{ ok: boolean }>(`/labels/${id}`, { method: "DELETE" }),
+}
+
+// Songs
+export interface Song {
+  id: string
+  name: string
+  beat: string
+  youtube_url: string
+  created_at: string
+}
+
+export const songsApi = {
+  list: () => request<Song[]>("/songs/"),
+  create: (data: { name: string; beat: string; youtube_url: string }) =>
+    request<Song>("/songs/", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: { name?: string; beat?: string; youtube_url?: string }) =>
+    request<Song>(`/songs/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<{ ok: boolean }>(`/songs/${id}`, { method: "DELETE" }),
+}
+
+// Goals
+export interface Goal {
+  id: string
+  category_id: string
+  name: string
+  initial_value: number
+  target_value: number
+  current_value: number
+  unit: string
+  position: number
+  created_at: string
+}
+
+export interface GoalCategory {
+  id: string
+  period_id: string
+  name: string
+  color: string
+  position: number
+  created_at: string
+  goals: Goal[]
+}
+
+export interface GoalPeriod {
+  id: string
+  name: string
+  start_date: string
+  end_date: string
+  created_at: string
+  categories: GoalCategory[]
+}
+
+export const goalsApi = {
+  listPeriods: () => request<GoalPeriod[]>("/goals/periods"),
+  createPeriod: (data: { name: string; start_date: string; end_date: string }) =>
+    request<GoalPeriod>("/goals/periods", { method: "POST", body: JSON.stringify(data) }),
+  updatePeriod: (id: string, data: { name?: string; start_date?: string; end_date?: string }) =>
+    request<GoalPeriod>(`/goals/periods/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deletePeriod: (id: string) =>
+    request<{ ok: boolean }>(`/goals/periods/${id}`, { method: "DELETE" }),
+
+  createCategory: (periodId: string, data: { name: string; color?: string }) =>
+    request<GoalCategory>(`/goals/periods/${periodId}/categories`, { method: "POST", body: JSON.stringify(data) }),
+  updateCategory: (id: string, data: { name?: string; color?: string }) =>
+    request<GoalCategory>(`/goals/categories/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteCategory: (id: string) =>
+    request<{ ok: boolean }>(`/goals/categories/${id}`, { method: "DELETE" }),
+
+  createGoal: (categoryId: string, data: { name: string; initial_value?: number; target_value?: number; current_value?: number; unit?: string }) =>
+    request<Goal>(`/goals/categories/${categoryId}/goals`, { method: "POST", body: JSON.stringify(data) }),
+  updateGoal: (id: string, data: { name?: string; initial_value?: number; target_value?: number; current_value?: number; unit?: string }) =>
+    request<Goal>(`/goals/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteGoal: (id: string) =>
+    request<{ ok: boolean }>(`/goals/goals/${id}`, { method: "DELETE" }),
+}
+
+// Settings
+export const settingsApi = {
+  get: (key: string) => request<{ key: string; value: string; updated_at: string | null }>(`/settings/${key}`),
+  set: (key: string, value: string) =>
+    request<{ key: string; value: string; updated_at: string }>(`/settings/${key}`, { method: "PUT", body: JSON.stringify({ value }) }),
 }

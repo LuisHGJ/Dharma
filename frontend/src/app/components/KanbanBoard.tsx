@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd"
 import { MoreHorizontal } from "lucide-react"
-import { columnsApi, cardsApi, Column as ColumnType, Card as CardType } from "@/lib/api"
+import { columnsApi, cardsApi, checklistsApi, labelsApi, settingsApi, Column as ColumnType, Card as CardType } from "@/lib/api"
 import Column from "./Column"
 import CardModal from "./CardModal"
 import CreateColumn from "./CreateColumn"
@@ -30,8 +30,9 @@ export default function KanbanBoard() {
 
   useEffect(() => {
     fetchData()
-    const saved = localStorage.getItem("kanban-wallpaper")
-    if (saved) setWallpaper(saved)
+    settingsApi.get("kanban-wallpaper").then((res) => {
+      if (res.value) setWallpaper(res.value)
+    }).catch(() => {})
   }, [fetchData])
 
   useEffect(() => {
@@ -48,18 +49,18 @@ export default function KanbanBoard() {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const result = ev.target?.result as string
       setWallpaper(result)
-      localStorage.setItem("kanban-wallpaper", result)
+      await settingsApi.set("kanban-wallpaper", result)
     }
     reader.readAsDataURL(file)
     setMenuOpen(false)
   }
 
-  const handleRemoveWallpaper = () => {
+  const handleRemoveWallpaper = async () => {
     setWallpaper(null)
-    localStorage.removeItem("kanban-wallpaper")
+    await settingsApi.set("kanban-wallpaper", "")
     setMenuOpen(false)
   }
 
@@ -69,6 +70,37 @@ export default function KanbanBoard() {
   const handleCardClick = (card: CardType) => {
     const fullCard = cards.find((c) => c.id === card.id) || card
     setSelectedCard(fullCard)
+  }
+
+  const handleCardDuplicate = async (card: CardType) => {
+    const newCard = await cardsApi.create({
+      column_id: card.column_id,
+      title: `${card.title} (cópia)`,
+      description: card.description || undefined,
+      deadline: card.deadline || undefined,
+    })
+
+    for (const cl of card.checklists) {
+      const newChecklist = await checklistsApi.create(newCard.id, { name: cl.name })
+      for (const item of cl.items) {
+        await checklistsApi.createItem(newChecklist.id, { text: item.text })
+        if (item.is_checked) {
+          const createdItems = await checklistsApi.list(newCard.id)
+          const created = createdItems
+            .find(c => c.id === newChecklist.id)
+            ?.items.find(i => i.text === item.text)
+          if (created) {
+            await checklistsApi.updateItem(created.id, { is_checked: true })
+          }
+        }
+      }
+    }
+
+    for (const label of card.labels) {
+      await labelsApi.create(newCard.id, { name: label.name, color: label.color })
+    }
+
+    await fetchData()
   }
 
   const handleCardDeleteFromContext = (card: CardType) => {
@@ -173,6 +205,7 @@ export default function KanbanBoard() {
                   cards={getCardsForColumn(col.id)}
                   onRefresh={fetchData}
                   onCardClick={handleCardClick}
+                  onCardDuplicate={handleCardDuplicate}
                   onCardDelete={handleCardDeleteFromContext}
                   index={index}
                 />

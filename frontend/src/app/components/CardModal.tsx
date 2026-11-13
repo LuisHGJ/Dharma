@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 import { X, Trash2, Upload, Calendar, Tag, Image, Pencil } from "lucide-react"
-import { Card as CardType, cardsApi, checklistsApi, labelsApi, Label, Checklist } from "@/lib/api"
+import { Card as CardType, cardsApi, checklistsApi, labelsApi, Label, Checklist, API_URL } from "@/lib/api"
 import ChecklistComponent from "./Checklist"
 import ConfirmModal from "./ConfirmModal"
 
@@ -22,7 +22,6 @@ export default function CardModal({ card, onClose, onUpdated, onDeleted }: CardM
   const [deadline, setDeadline] = useState(card.deadline ? card.deadline.slice(0, 10) : "")
   const [tempDeadline, setTempDeadline] = useState(deadline)
   const [newChecklistName, setNewChecklistName] = useState("")
-  const [refreshKey, setRefreshKey] = useState(0)
   const [showLabelsModal, setShowLabelsModal] = useState(false)
   const [showDeadlineModal, setShowDeadlineModal] = useState(false)
   const [newLabelName, setNewLabelName] = useState("")
@@ -32,6 +31,11 @@ export default function CardModal({ card, onClose, onUpdated, onDeleted }: CardM
   const [checklists, setChecklists] = useState<Checklist[]>(card.checklists || [])
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "card" | "label"; id?: string; name?: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setChecklists(card.checklists || [])
+    setLabels(card.labels || [])
+  }, [card])
 
   const handleSave = async () => {
     let deadlineISO: string | undefined
@@ -81,9 +85,9 @@ export default function CardModal({ card, onClose, onUpdated, onDeleted }: CardM
   const handleCreateChecklist = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newChecklistName.trim()) return
-    await checklistsApi.create(card.id, { name: newChecklistName.trim() })
+    const created = await checklistsApi.create(card.id, { name: newChecklistName.trim() })
+    setChecklists([...checklists, created])
     setNewChecklistName("")
-    setRefreshKey((k) => k + 1)
     onUpdated()
   }
 
@@ -91,7 +95,6 @@ export default function CardModal({ card, onClose, onUpdated, onDeleted }: CardM
     if (deletedId) {
       setChecklists(checklists.filter((cl) => cl.id !== deletedId))
     }
-    setRefreshKey((k) => k + 1)
     onUpdated()
   }
 
@@ -143,7 +146,7 @@ export default function CardModal({ card, onClose, onUpdated, onDeleted }: CardM
       <div className="modal trello-modal" onClick={(e) => e.stopPropagation()}>
         {card.cover_url && (
           <div className="modal-cover">
-            <img src={`http://localhost:8000${card.cover_url}`} alt="" />
+            <img src={`${API_URL}${card.cover_url}`} alt="" />
             <button className="modal-cover-remove" onClick={handleRemoveCover}>
               <Trash2 size={14} />
             </button>

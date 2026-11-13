@@ -13,11 +13,12 @@ interface ColumnProps {
   cards: CardType[]
   onRefresh: () => void
   onCardClick: (card: CardType) => void
+  onCardDuplicate: (card: CardType) => void
   onCardDelete: (card: CardType) => void
   index: number
 }
 
-export default function Column({ column, cards, onRefresh, onCardClick, onCardDelete, index }: ColumnProps) {
+export default function Column({ column, cards, onRefresh, onCardClick, onCardDuplicate, onCardDelete, index }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(column.name)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -80,6 +81,7 @@ export default function Column({ column, cards, onRefresh, onCardClick, onCardDe
                       key={card.id}
                       card={card}
                       onClick={() => onCardClick(card)}
+                      onDuplicate={() => onCardDuplicate(card)}
                       onDelete={() => onCardDelete(card)}
                       index={index}
                     />
