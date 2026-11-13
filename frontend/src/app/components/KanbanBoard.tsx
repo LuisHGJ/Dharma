@@ -8,6 +8,7 @@ import Column from "./Column"
 import CardModal from "./CardModal"
 import CreateColumn from "./CreateColumn"
 import ConfirmModal from "./ConfirmModal"
+import { AppLoader, AppLoadError } from "./AppStatus"
 
 export default function KanbanBoard() {
   const [columns, setColumns] = useState<ColumnType[]>([])
@@ -16,17 +17,35 @@ export default function KanbanBoard() {
   const [cardToDelete, setCardToDelete] = useState<CardType | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [wallpaper, setWallpaper] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const hasLoadedRef = useRef(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchData = useCallback(async () => {
-    const [cols, cds] = await Promise.all([
-      columnsApi.list(),
-      cardsApi.list(),
-    ])
-    setColumns(cols)
-    setCards(cds)
+    try {
+      const [cols, cds] = await Promise.all([
+        columnsApi.list(),
+        cardsApi.list(),
+      ])
+      setColumns(cols)
+      setCards(cds)
+      hasLoadedRef.current = true
+      setLoadError(false)
+    } catch {
+      // só mostra a tela de erro se ainda não carregou nada
+      if (!hasLoadedRef.current) setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  const handleRetry = () => {
+    setLoadError(false)
+    setLoading(true)
+    fetchData()
+  }
 
   useEffect(() => {
     fetchData()
@@ -160,6 +179,14 @@ export default function KanbanBoard() {
         await cardsApi.update(destCards[i].id, { position: i })
       }
     }
+  }
+
+  if (loading || loadError) {
+    return (
+      <div className="kanban">
+        {loading ? <AppLoader /> : <AppLoadError onRetry={handleRetry} />}
+      </div>
+    )
   }
 
   return (

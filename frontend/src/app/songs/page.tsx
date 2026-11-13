@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Plus, Pencil, Trash2, ExternalLink, Search, Music } from "lucide-react"
 import { songsApi, Song } from "@/lib/api"
 import ConfirmModal from "../components/ConfirmModal"
+import { AppLoader, AppLoadError } from "../components/AppStatus"
 
 const BEAT_OPTIONS = [
   { value: "3", label: "3 tempos" },
@@ -19,10 +20,21 @@ export default function SongsPage() {
   const [formName, setFormName] = useState("")
   const [formBeat, setFormBeat] = useState<string>("4")
   const [formUrl, setFormUrl] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const hasLoadedRef = useRef(false)
 
   const fetchSongs = useCallback(async () => {
-    const data = await songsApi.list()
-    setSongs(data)
+    try {
+      const data = await songsApi.list()
+      setSongs(data)
+      hasLoadedRef.current = true
+      setLoadError(false)
+    } catch {
+      if (!hasLoadedRef.current) setLoadError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -75,6 +87,20 @@ export default function SongsPage() {
     await songsApi.delete(deleteConfirm.id)
     setDeleteConfirm(null)
     fetchSongs()
+  }
+
+  const handleRetry = () => {
+    setLoadError(false)
+    setLoading(true)
+    fetchSongs()
+  }
+
+  if (loading || loadError) {
+    return (
+      <div className="songs-page">
+        {loading ? <AppLoader /> : <AppLoadError onRetry={handleRetry} />}
+      </div>
+    )
   }
 
   return (

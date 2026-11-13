@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Target, Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react"
 import { goalsApi, GoalPeriod, GoalCategory, Goal } from "@/lib/api"
 import ConfirmModal from "../components/ConfirmModal"
+import { AppLoader, AppLoadError } from "../components/AppStatus"
 
 const CATEGORY_COLORS = [
   { value: "681314", label: "Vermelho" },
@@ -52,12 +53,23 @@ export default function GoalsPage() {
   const [goalUnit, setGoalUnit] = useState("")
 
   const [deleteTarget, setDeleteTarget] = useState<{ type: "period" | "category" | "goal"; id: string; name: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const hasLoadedRef = useRef(false)
 
   const fetchPeriods = useCallback(async () => {
-    const data = await goalsApi.listPeriods()
-    setPeriods(data)
-    if (!selectedPeriodId && data.length > 0) {
-      setSelectedPeriodId(data[0].id)
+    try {
+      const data = await goalsApi.listPeriods()
+      setPeriods(data)
+      if (!selectedPeriodId && data.length > 0) {
+        setSelectedPeriodId(data[0].id)
+      }
+      hasLoadedRef.current = true
+      setLoadError(false)
+    } catch {
+      if (!hasLoadedRef.current) setLoadError(true)
+    } finally {
+      setLoading(false)
     }
   }, [selectedPeriodId])
 
@@ -195,6 +207,20 @@ export default function GoalsPage() {
     }
     setDeleteTarget(null)
     fetchPeriods()
+  }
+
+  const handleRetry = () => {
+    setLoadError(false)
+    setLoading(true)
+    fetchPeriods()
+  }
+
+  if (loading || loadError) {
+    return (
+      <div className="songs-page">
+        {loading ? <AppLoader /> : <AppLoadError onRetry={handleRetry} />}
+      </div>
+    )
   }
 
   return (
