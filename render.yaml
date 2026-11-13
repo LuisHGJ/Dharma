@@ -1,0 +1,17 @@
+# Blueprint do Render: provisiona a API (backend) automaticamente.
+# O frontend (Vercel) e o banco (Neon) são criados manualmente nos respectivos painéis.
+services:
+  - type: web
+    name: dharma-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      # Cole a connection string do Neon no painel do Render (é um segredo)
+      - key: DATABASE_URL
+        sync: false
+      # URL do projeto da Vercel, para liberar no CORS
+      - key: ALLOWED_ORIGINS
+        value: https://SEU-PROJETO.vercel.app
